@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Celebration Animal Puzzle</title>
+
+<style>
+
+body{
+    font-family:Arial;
+    text-align:center;
+    background:#eef3ff;
+    margin:0;
+    padding:10px;
+}
+
+#board{
+    display:grid;
+    gap:8px;
+    justify-content:center;
+    margin-top:20px;
+    touch-action:none;
+}
+
+.cell{
+    width:116px;
+    height:116px;
+    background:white;
+    border:3px solid #999;
+    border-radius:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:72px;
+    user-select:none;
+    transition:0.1s;
+}
+
+.empty{
+    background:#d5ddff;
+}
+
+button{
+    padding:10px 14px;
+    margin:4px;
+    border:none;
+    border-radius:12px;
+    background:#6075ff;
+    color:white;
+    font-size:18px;
+}
+
+#bear{
+    font-size:160px;
+    margin-top:10px;
+    transition:0.2s;
+}
+
+#praise{
+    font-size:46px;
+    color:#ff6a00;
+    font-weight:bold;
+    min-height:60px;
+}
+
+#msg{
+    margin-top:10px;
+    font-size:34px;
+    color:green;
+    font-weight:bold;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>🧸 Animal Puzzle Celebration</h1>
+
+<p style="font-size:24px;">
+Slide animals without lifting finger
+</p>
+
+<div>
+<button onclick="newGame(3)">3×3</button>
+<button onclick="newGame(4)">4×4</button>
+<button onclick="newGame(5)">5×5</button>
+<button onclick="newGame(6)">6×6</button>
+<button onclick="newGame(7)">7×7</button>
+<button onclick="newGame(8)">8×8</button>
+<button onclick="newGame(9)">9×9</button>
+</div>
+
+<div id="board"></div>
+
+<div id="bear">🧸</div>
+
+<div id="praise">Let's Play!</div>
+
+<div id="msg"></div>
+
+<script>
+
+const animals=["🐶","🐱","🐼","🐸","🐵","🦊","🐰","🐨"];
+
+let board=[];
+let size=3;
+let dragIndex=null;
+let celebrated=[];
+
+let audioCtx=null;
+
+function unlockAudio(){
+
+    if(audioCtx==null){
+
+        audioCtx = new (
+            window.AudioContext ||
+            window.webkitAudioContext
+        )();
+    }
+
+    if(audioCtx.state==="suspended"){
+
+        audioCtx.resume();
+    }
+}
+
+document.body.addEventListener(
+    "touchstart",
+    unlockAudio,
+    {once:true}
+);
+
+document.body.addEventListener(
+    "mousedown",
+    unlockAudio,
+    {once:true}
+);
+
+function newGame(n){
+
+    size=n;
+
+    board=[];
+
+    celebrated=[];
+
+    const total=n*n;
+
+    const groups=n-1;
+
+    let selected=[];
+
+    while(selected.length<groups){
+
+        let a=animals[Math.floor(Math.random()*animals.length)];
+
+        if(!selected.includes(a)){
+
+            selected.push(a);
+        }
+    }
+
+    for(let animal of selected){
+
+        for(let i=0;i<n;i++){
+
+            board.push(animal);
+        }
+    }
+
+    while(board.length < total-2){
+
+        let a=animals[Math.floor(Math.random()*animals.length)];
+
+        board.push(a);
+    }
+
+    board.push("");
+    board.push("");
+
+    shuffle(board);
+
+    render();
+
+    document.getElementById("msg").innerHTML="";
+    document.getElementById("praise").innerHTML="Let's Play!";
+}
+
+function shuffle(arr){
+
+    for(let i=arr.length-1;i>0;i--){
+
+        let j=Math.floor(Math.random()*(i+1));
+
+        [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+}
+
+function render(){
+
+    const b=document.getElementById("board");
+
+    b.style.gridTemplateColumns=`repeat(${size},116px)`;
+
+    b.innerHTML="";
+
+    board.forEach((item,index)=>{
+
+        let d=document.createElement("div");
+
+        d.className="cell";
+
+        if(item==""){
+
+            d.classList.add("empty");
+
+        }else{
+
+            d.innerHTML=item;
+        }
+
+        d.dataset.index=index;
+
+        b.appendChild(d);
+    });
+
+    attachEvents();
+
+    checkLines();
+}
+
+function attachEvents(){
+
+    const boardDiv=document.getElementById("board");
+
+    boardDiv.onpointerdown=function(e){
+
+        const cell=e.target.closest(".cell");
+
+        if(!cell) return;
+
+        dragIndex=parseInt(cell.dataset.index);
+    };
+
+    boardDiv.onpointermove=function(e){
+
+        if(dragIndex===null) return;
+
+        const element=document.elementFromPoint(
+            e.clientX,
+            e.clientY
+        );
+
+        if(!element) return;
+
+        if(!element.classList.contains("cell")) return;
+
+        let target=parseInt(element.dataset.index);
+
+        slide(dragIndex,target);
+    };
+
+    boardDiv.onpointerup=function(){
+
+        dragIndex=null;
+    };
+}
+
+function slide(from,to){
+
+    if(board[from]=="") return;
+
+    if(board[to]!="") return;
+
+    let fr=Math.floor(from/size);
+    let fc=from%size;
+
+    let tr=Math.floor(to/size);
+    let tc=to%size;
+
+    if(Math.abs(fr-tr)+Math.abs(fc-tc)==1){
+
+        board[to]=board[from];
+        board[from]="";
+
+        dragIndex=to;
+
+        playSlideSound();
+
+        render();
+    }
+}
+
+function playSlideSound(){
+
+    if(audioCtx==null) return;
+
+    let osc=audioCtx.createOscillator();
+    let gain=audioCtx.createGain();
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.type="sine";
+
+    osc.frequency.value=700;
+
+    gain.gain.setValueAtTime(
+        0.12,
+        audioCtx.currentTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        audioCtx.currentTime+0.08
+    );
+
+    osc.start();
+
+    osc.stop(audioCtx.currentTime+0.08);
+}
+
+function checkLines(){
+
+    let lines=0;
+
+    for(let r=0;r<size;r++){
+
+        let row=[];
+
+        for(let c=0;c<size;c++){
+
+            row.push(board[r*size+c]);
+        }
+
+        if(validLine(row)){
+
+            lines++;
+
+            celebrate("row"+r);
+        }
+    }
+
+    for(let c=0;c<size;c++){
+
+        let col=[];
+
+        for(let r=0;r<size;r++){
+
+            col.push(board[r*size+c]);
+        }
+
+        if(validLine(col)){
+
+            lines++;
+
+            celebrate("col"+c);
+        }
+    }
+
+    if(lines>=size-1){
+
+        document.getElementById("msg").innerHTML=
+        "🏆 ALL LINES COMPLETED!";
+    }
+}
+
+function validLine(arr){
+
+    if(arr.includes("")) return false;
+
+    return arr.every(v=>v===arr[0]);
+}
+
+function celebrate(id){
+
+    if(celebrated.includes(id)) return;
+
+    celebrated.push(id);
+
+    const texts=[
+        "🧸 YEAHHHH!",
+        "🧸 AWESOME!",
+        "🧸 AMAZING!",
+        "🧸 SUPER STAR!",
+        "🧸 WOWWW!",
+        "🧸 FANTASTIC!"
+    ];
+
+    document.getElementById("praise").innerHTML=
+    texts[Math.floor(Math.random()*texts.length)];
+
+    const bear=document.getElementById("bear");
+
+    bear.style.transform="scale(1.4) rotate(8deg)";
+
+    setTimeout(()=>{
+        bear.style.transform="scale(1)";
+    },350);
+
+    playBigCelebration();
+}
+
+function playBigCelebration(){
+
+    if(audioCtx==null) return;
+
+    for(let i=0;i<35;i++){
+
+        let osc=audioCtx.createOscillator();
+        let gain=audioCtx.createGain();
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.type="square";
+
+        osc.frequency.value=
+            300 + Math.random()*2200;
+
+        let start=audioCtx.currentTime+i*0.015;
+
+        gain.gain.setValueAtTime(
+            0.55,
+            start
+        );
+
+        gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            start+0.25
+        );
+
+        osc.start(start);
+
+        osc.stop(start+0.25);
+    }
+
+    // YEAH sound effect style
+    setTimeout(()=>{
+
+        let osc=audioCtx.createOscillator();
+        let gain=audioCtx.createGain();
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.type="sawtooth";
+
+        osc.frequency.setValueAtTime(
+            500,
+            audioCtx.currentTime
+        );
+
+        osc.frequency.exponentialRampToValueAtTime(
+            1200,
+            audioCtx.currentTime+0.5
+        );
+
+        gain.gain.setValueAtTime(
+            0.6,
+            audioCtx.currentTime
+        );
+
+        gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            audioCtx.currentTime+0.5
+        );
+
+        osc.start();
+
+        osc.stop(audioCtx.currentTime+0.5);
+
+    },100);
+}
+
+newGame(3);
+
+</script>
+
+</body>
+</html>
